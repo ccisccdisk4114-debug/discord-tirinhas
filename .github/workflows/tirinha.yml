@@ -1,19 +1,13 @@
 name: Tirinha diária
 
 on:
-  schedule:
-    # Executa todos os dias às 07:30 (horário de Brasília)
-    - cron: "30 10 * * *"
-
   workflow_dispatch:
 
 jobs:
   enviar:
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Baixar código
         uses: actions/checkout@v4
 
@@ -33,7 +27,7 @@ jobs:
       - name: Executar script
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        run:
+        run: |
           python tirinha.py
 
       - name: Salvar diagnóstico
