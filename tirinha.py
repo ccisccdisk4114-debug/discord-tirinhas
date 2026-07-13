@@ -16,13 +16,35 @@ def pegar_tirinha():
     with sync_playwright() as p:
 
         navegador = p.chromium.launch(
-            headless=True
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled"
+            ]
         )
 
         print("Navegador aberto")
 
 
-        pagina = navegador.new_page()
+        contexto = navegador.new_context(
+
+            viewport={
+                "width": 1280,
+                "height": 900
+            },
+
+            locale="en-US",
+
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+
+        )
+
+
+        pagina = contexto.new_page()
 
 
         print("Abrindo GoComics...")
@@ -38,11 +60,23 @@ def pegar_tirinha():
         print("Página carregada")
 
 
-        # Espera o JavaScript montar a página
-        pagina.wait_for_timeout(5000)
+        # Tempo para a verificação automática e JavaScript
+        pagina.wait_for_timeout(15000)
 
 
-        print("Esperou JavaScript")
+        print("Esperou carregamento")
+
+
+        print(
+            "Título:",
+            pagina.title()
+        )
+
+
+        print(
+            "URL:",
+            pagina.url
+        )
 
 
         quantidade_imagens = pagina.locator(
@@ -67,7 +101,7 @@ def pegar_tirinha():
         )
 
 
-        # Caso não encontre a tirinha, salva diagnóstico
+        # Diagnóstico caso ainda esteja na tela de segurança
         if quantidade_comic == 0:
 
 
@@ -118,7 +152,6 @@ def pegar_tirinha():
         ).first
 
 
-
         imagem = comic.get_attribute(
             "src"
         )
@@ -144,7 +177,6 @@ def pegar_tirinha():
         navegador.close()
 
 
-
         return {
 
             "imagem": imagem,
@@ -164,39 +196,34 @@ def enviar_discord(tirinha):
     )
 
 
-    dados = {
+    resposta = requests.post(
 
+        WEBHOOK,
 
-        "username": "Daily Comics",
+        json={
 
+            "username": "Daily Comics",
 
-        "embeds": [
+            "embeds": [
 
-            {
+                {
 
-                "title": "Peanuts - Tirinha do dia",
+                    "title": "Peanuts - Tirinha do dia",
 
+                    "description": tirinha["descricao"],
 
-                "description": tirinha["descricao"],
+                    "image": {
 
+                        "url": tirinha["imagem"]
 
-                "image": {
-
-                    "url": tirinha["imagem"]
+                    }
 
                 }
 
-            }
+            ]
 
-        ]
+        }
 
-    }
-
-
-
-    resposta = requests.post(
-        WEBHOOK,
-        json=dados
     )
 
 
@@ -215,14 +242,12 @@ tirinha = pegar_tirinha()
 
 if tirinha:
 
-
     enviar_discord(
         tirinha
     )
 
 
 else:
-
 
     print(
         "Processo finalizado sem tirinha"
