@@ -1,11 +1,13 @@
 from playwright.sync_api import sync_playwright
 import requests
 import os
+from datetime import datetime
 
 
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 URL = "https://www.gocomics.com/peanuts"
+
 
 
 def pegar_tirinha():
@@ -18,55 +20,101 @@ def pegar_tirinha():
 
         pagina = navegador.new_page()
 
+
         pagina.goto(
             URL,
-            wait_until="networkidle"
+            wait_until="domcontentloaded",
+            timeout=60000
         )
 
-        # Espera a imagem da tirinha aparecer
-        pagina.wait_for_selector(
-            "img[class*='comic__image']"
-        )
 
-        imagem = pagina.locator(
-            "img[class*='comic__image']"
-        ).first
+        # Aguarda um pouco para o JavaScript terminar
+        pagina.wait_for_timeout(5000)
 
 
-        src = imagem.get_attribute(
-            "src"
-        )
+        imagens = pagina.locator("img")
 
-        alt = imagem.get_attribute(
-            "alt"
-        )
+        quantidade = imagens.count()
+
+
+        print("Quantidade de imagens encontradas:", quantidade)
+
+
+        tirinha = None
+
+
+        for i in range(quantidade):
+
+            imagem = imagens.nth(i)
+
+            alt = imagem.get_attribute("alt")
+            src = imagem.get_attribute("src")
+
+
+            print("\nImagem", i)
+            print("ALT:", alt)
+            print("SRC:", src)
+
+
+            # Procura o padrão da tirinha do GoComics
+            if (
+                alt
+                and "undefined for" in alt
+                and src
+            ):
+                tirinha = {
+                    "imagem": src,
+                    "descricao": alt
+                }
+
+                break
 
 
         navegador.close()
 
 
-        return {
-            "imagem": src,
-            "descricao": alt
-        }
+        return tirinha
 
 
 
 def enviar_discord(tirinha):
 
+    data = datetime.now().strftime(
+        "%d/%m/%Y"
+    )
+
+
     dados = {
+
+        "username": "Daily Comics",
+
         "embeds": [
+
             {
+
                 "title": "Peanuts - Tirinha do dia",
-                "description": tirinha["descricao"],
+
+                "description": (
+                    f"{tirinha['descricao']}\n\n"
+                    f"Data: {data}"
+                ),
+
                 "image": {
+
                     "url": tirinha["imagem"]
+
                 },
+
                 "footer": {
-                    "text": "Publicado automaticamente pelo Daily Comics"
+
+                    "text": "Postado automaticamente"
+
                 }
+
             }
+
         ]
+
     }
 
 
@@ -77,20 +125,32 @@ def enviar_discord(tirinha):
 
 
     if resposta.status_code != 204:
-        print(resposta.text)
+
+        print(
+            "Erro ao enviar Discord:"
+        )
+
+        print(
+            resposta.text
+        )
+
 
 
 
 tirinha = pegar_tirinha()
 
 
-if tirinha["imagem"]:
+if tirinha:
 
-    print("Imagem encontrada:")
-    print(tirinha["imagem"])
+    print("\nTirinha encontrada:")
+    print(tirinha)
+
 
     enviar_discord(tirinha)
 
+
 else:
 
-    print("Não encontrei a tirinha")
+    print(
+        "\nNão foi possível encontrar a tirinha."
+    )
