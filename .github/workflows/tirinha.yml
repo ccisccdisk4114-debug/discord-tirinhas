@@ -2,7 +2,8 @@ name: Tirinha diária
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Executa todos os dias às 07:30 (horário de Brasília)
+    - cron: "30 10 * * *"
 
   workflow_dispatch:
 
