@@ -141,7 +141,6 @@ def abrir_pagina(nome, url):
             )
 
 
-
             with open(
 
                 "pagina_debug.html",
@@ -325,7 +324,7 @@ def enviar_discord(tirinha):
     dados = {
 
 
-        "username": "Daily Comics",
+        "username": "MemoBot!",
 
 
 
