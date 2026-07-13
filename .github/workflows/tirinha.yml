@@ -5,14 +5,16 @@ on:
 
   workflow_dispatch:
 
+
   schedule:
 
-    # TESTE: executa a cada 5 minutos
-    - cron: "*/5 * * * *"
+    # TESTE: executa a cada 1 minuto
+    - cron: "*/1 * * * *"
 
 
 
 jobs:
+
 
   enviar:
 
@@ -25,11 +27,13 @@ jobs:
 
 
       - name: Baixar código
+
         uses: actions/checkout@v4
 
 
 
       - name: Configurar Python
+
         uses: actions/setup-python@v5
 
         with:
@@ -39,6 +43,7 @@ jobs:
 
 
       - name: Instalar dependências
+
         run: |
 
           pip install -r requirements.txt
@@ -46,6 +51,7 @@ jobs:
 
 
       - name: Instalar Playwright
+
         run: |
 
           playwright install chromium
@@ -64,7 +70,7 @@ jobs:
 
 
 
-      - name: Salvar arquivos de diagnóstico
+      - name: Salvar diagnóstico
 
         if: always()
 
