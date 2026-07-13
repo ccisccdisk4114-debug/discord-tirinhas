@@ -1,6 +1,7 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import requests
 import os
+from datetime import datetime
 
 
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
@@ -9,9 +10,7 @@ URL = "https://www.gocomics.com/peanuts"
 
 
 
-def pegar_tirinha():
-
-    print("Iniciando Playwright...")
+def abrir_pagina():
 
     with sync_playwright() as p:
 
@@ -21,8 +20,6 @@ def pegar_tirinha():
                 "--disable-blink-features=AutomationControlled"
             ]
         )
-
-        print("Navegador aberto")
 
 
         contexto = navegador.new_context(
@@ -60,72 +57,19 @@ def pegar_tirinha():
         print("Página carregada")
 
 
-        # Tempo para a verificação automática e JavaScript
-        pagina.wait_for_timeout(15000)
+        try:
 
-
-        print("Esperou carregamento")
-
-
-        print(
-            "Título:",
-            pagina.title()
-        )
-
-
-        print(
-            "URL:",
-            pagina.url
-        )
-
-
-        quantidade_imagens = pagina.locator(
-            "img"
-        ).count()
-
-
-        print(
-            "Quantidade de imagens:",
-            quantidade_imagens
-        )
-
-
-        quantidade_comic = pagina.locator(
-            "img[class*='comic__image']"
-        ).count()
-
-
-        print(
-            "Quantidade de comic__image:",
-            quantidade_comic
-        )
-
-
-        # Diagnóstico caso ainda esteja na tela de segurança
-        if quantidade_comic == 0:
-
-
-            print(
-                "Nenhuma tirinha encontrada"
+            pagina.wait_for_selector(
+                "img[class*='comic__image'][alt*='for']",
+                timeout=60000
             )
 
 
-            conteudo = pagina.content()
-
-
-            with open(
-                "pagina_debug.html",
-                "w",
-                encoding="utf-8"
-            ) as arquivo:
-
-                arquivo.write(
-                    conteudo
-                )
+        except PlaywrightTimeoutError:
 
 
             print(
-                "HTML salvo"
+                "A tirinha não apareceu no tempo esperado"
             )
 
 
@@ -135,9 +79,15 @@ def pegar_tirinha():
             )
 
 
-            print(
-                "Screenshot salvo"
-            )
+            with open(
+                "pagina_debug.html",
+                "w",
+                encoding="utf-8"
+            ) as arquivo:
+
+                arquivo.write(
+                    pagina.content()
+                )
 
 
             navegador.close()
@@ -148,8 +98,9 @@ def pegar_tirinha():
 
 
         comic = pagina.locator(
-            "img[class*='comic__image']"
+            "img[class*='comic__image'][alt*='for']"
         ).first
+
 
 
         imagem = comic.get_attribute(
@@ -169,12 +120,13 @@ def pegar_tirinha():
 
 
         print(
-            "Descrição:",
+            "Descrição original:",
             descricao
         )
 
 
         navegador.close()
+
 
 
         return {
@@ -188,6 +140,57 @@ def pegar_tirinha():
 
 
 
+def pegar_tirinha():
+
+    tentativas = 3
+
+
+    for tentativa in range(1, tentativas + 1):
+
+
+        print(
+            f"Tentativa {tentativa}/{tentativas}"
+        )
+
+
+        resultado = abrir_pagina()
+
+
+        if resultado:
+
+            return resultado
+
+
+
+        print(
+            "Falhou, tentando novamente..."
+        )
+
+
+
+    return None
+
+
+
+
+def formatar_descricao(tirinha):
+
+
+    data = datetime.now().strftime(
+        "%d/%m/%Y"
+    )
+
+
+    return (
+        f"🐱 **Peanuts Daily Comic**\n\n"
+        f"📅 {data}\n\n"
+        f"Charles Schulz"
+    )
+
+
+
+
+
 def enviar_discord(tirinha):
 
 
@@ -196,34 +199,45 @@ def enviar_discord(tirinha):
     )
 
 
-    resposta = requests.post(
+    dados = {
 
-        WEBHOOK,
 
-        json={
+        "username": "Daily Comics",
 
-            "username": "Daily Comics",
 
-            "embeds": [
+        "embeds": [
 
-                {
+            {
 
-                    "title": "Peanuts - Tirinha do dia",
+                "title": "Peanuts - Tirinha do dia",
 
-                    "description": tirinha["descricao"],
+                "description": formatar_descricao(
+                    tirinha
+                ),
 
-                    "image": {
+                "image": {
 
-                        "url": tirinha["imagem"]
+                    "url": tirinha["imagem"]
 
-                    }
+                },
+
+                "footer": {
+
+                    "text": "Automated Daily Comics"
 
                 }
 
-            ]
+            }
 
-        }
+        ]
 
+    }
+
+
+
+    resposta = requests.post(
+        WEBHOOK,
+        json=dados
     )
 
 
@@ -242,6 +256,7 @@ tirinha = pegar_tirinha()
 
 if tirinha:
 
+
     enviar_discord(
         tirinha
     )
@@ -249,6 +264,7 @@ if tirinha:
 
 else:
 
+
     print(
-        "Processo finalizado sem tirinha"
+        "Não foi possível obter a tirinha"
     )
