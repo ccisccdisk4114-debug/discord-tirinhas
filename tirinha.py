@@ -1,156 +1,69 @@
 from playwright.sync_api import sync_playwright
-import requests
-import os
-from datetime import datetime
 
-
-WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 URL = "https://www.gocomics.com/peanuts"
 
 
+with sync_playwright() as p:
 
-def pegar_tirinha():
+    navegador = p.chromium.launch(
+        headless=True
+    )
 
-    with sync_playwright() as p:
-
-        navegador = p.chromium.launch(
-            headless=True
-        )
-
-        pagina = navegador.new_page()
+    pagina = navegador.new_page()
 
 
-        pagina.goto(
-            URL,
-            wait_until="domcontentloaded",
-            timeout=60000
-        )
-
-
-        # Aguarda um pouco para o JavaScript terminar
-        pagina.wait_for_timeout(5000)
-
-
-        imagens = pagina.locator("img")
-
-        quantidade = imagens.count()
-
-
-        print("Quantidade de imagens encontradas:", quantidade)
-
-
-        tirinha = None
-
-
-        for i in range(quantidade):
-
-            imagem = imagens.nth(i)
-
-            alt = imagem.get_attribute("alt")
-            src = imagem.get_attribute("src")
-
-
-            print("\nImagem", i)
-            print("ALT:", alt)
-            print("SRC:", src)
-
-
-            # Procura o padrão da tirinha do GoComics
-            if (
-                alt
-                and "undefined for" in alt
-                and src
-            ):
-                tirinha = {
-                    "imagem": src,
-                    "descricao": alt
-                }
-
-                break
-
-
-        navegador.close()
-
-
-        return tirinha
-
-
-
-def enviar_discord(tirinha):
-
-    data = datetime.now().strftime(
-        "%d/%m/%Y"
+    pagina.goto(
+        URL,
+        wait_until="domcontentloaded",
+        timeout=60000
     )
 
 
-    dados = {
-
-        "username": "Daily Comics",
-
-        "embeds": [
-
-            {
-
-                "title": "Peanuts - Tirinha do dia",
-
-                "description": (
-                    f"{tirinha['descricao']}\n\n"
-                    f"Data: {data}"
-                ),
-
-                "image": {
-
-                    "url": tirinha["imagem"]
-
-                },
-
-                "footer": {
-
-                    "text": "Postado automaticamente"
-
-                }
-
-            }
-
-        ]
-
-    }
+    # Dá tempo para o JavaScript carregar
+    pagina.wait_for_timeout(5000)
 
 
-    resposta = requests.post(
-        WEBHOOK,
-        json=dados
+    print("Título da página:")
+    print(
+        pagina.title()
     )
 
 
-    if resposta.status_code != 204:
-
-        print(
-            "Erro ao enviar Discord:"
-        )
-
-        print(
-            resposta.text
-        )
+    print("\nURL atual:")
+    print(
+        pagina.url
+    )
 
 
-
-
-tirinha = pegar_tirinha()
-
-
-if tirinha:
-
-    print("\nTirinha encontrada:")
-    print(tirinha)
-
-
-    enviar_discord(tirinha)
-
-
-else:
+    print("\nTexto encontrado na página:")
+    texto = pagina.locator(
+        "body"
+    ).inner_text()
 
     print(
-        "\nNão foi possível encontrar a tirinha."
+        texto[:2000]
     )
+
+
+    # Conta elementos importantes
+    print("\nQuantidade de imagens:")
+    print(
+        pagina.locator("img").count()
+    )
+
+
+    print("\nQuantidade de elementos:")
+    print(
+        pagina.locator("*").count()
+    )
+
+
+    # Salva uma captura para análise
+    pagina.screenshot(
+        path="debug.png",
+        full_page=True
+    )
+
+
+    navegador.close()
