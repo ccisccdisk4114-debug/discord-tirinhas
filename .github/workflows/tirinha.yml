@@ -1,6 +1,7 @@
 name: Tirinha diária
 
 on:
+
   workflow_dispatch:
 
   schedule:
@@ -8,9 +9,11 @@ on:
 
 
 jobs:
+
   enviar:
 
     runs-on: ubuntu-latest
+
 
     steps:
 
@@ -27,6 +30,11 @@ jobs:
       - name: Instalar bibliotecas
         run: |
           pip install -r requirements.txt
+
+
+      - name: Instalar navegador Playwright
+        run: |
+          playwright install chromium
 
 
       - name: Executar script
