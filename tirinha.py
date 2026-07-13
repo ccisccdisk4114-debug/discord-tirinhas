@@ -8,6 +8,7 @@ WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 URL = "https://www.gocomics.com/peanuts"
 
 
+
 def pegar_tirinha():
 
     print("Iniciando Playwright...")
@@ -20,10 +21,12 @@ def pegar_tirinha():
 
         print("Navegador aberto")
 
+
         pagina = navegador.new_page()
 
 
         print("Abrindo GoComics...")
+
 
         pagina.goto(
             URL,
@@ -31,18 +34,25 @@ def pegar_tirinha():
             timeout=60000
         )
 
+
         print("Página carregada")
 
+
+        # Espera o JavaScript montar a página
         pagina.wait_for_timeout(5000)
+
 
         print("Esperou JavaScript")
 
 
-        quantidade = pagina.locator("img").count()
+        quantidade_imagens = pagina.locator(
+            "img"
+        ).count()
+
 
         print(
             "Quantidade de imagens:",
-            quantidade
+            quantidade_imagens
         )
 
 
@@ -50,21 +60,57 @@ def pegar_tirinha():
             "img[class*='comic__image']"
         ).count()
 
+
         print(
             "Quantidade de comic__image:",
             quantidade_comic
         )
 
 
+        # Caso não encontre a tirinha, salva diagnóstico
         if quantidade_comic == 0:
+
 
             print(
                 "Nenhuma tirinha encontrada"
             )
 
+
+            conteudo = pagina.content()
+
+
+            with open(
+                "pagina_debug.html",
+                "w",
+                encoding="utf-8"
+            ) as arquivo:
+
+                arquivo.write(
+                    conteudo
+                )
+
+
+            print(
+                "HTML salvo"
+            )
+
+
+            pagina.screenshot(
+                path="debug.png",
+                full_page=True
+            )
+
+
+            print(
+                "Screenshot salvo"
+            )
+
+
             navegador.close()
 
+
             return None
+
 
 
         comic = pagina.locator(
@@ -72,9 +118,11 @@ def pegar_tirinha():
         ).first
 
 
+
         imagem = comic.get_attribute(
             "src"
         )
+
 
         descricao = comic.get_attribute(
             "alt"
@@ -86,6 +134,7 @@ def pegar_tirinha():
             imagem
         )
 
+
         print(
             "Descrição:",
             descricao
@@ -95,32 +144,59 @@ def pegar_tirinha():
         navegador.close()
 
 
+
         return {
+
             "imagem": imagem,
+
             "descricao": descricao
+
         }
+
 
 
 
 def enviar_discord(tirinha):
 
-    print("Enviando para Discord...")
+
+    print(
+        "Enviando para Discord..."
+    )
+
+
+    dados = {
+
+
+        "username": "Daily Comics",
+
+
+        "embeds": [
+
+            {
+
+                "title": "Peanuts - Tirinha do dia",
+
+
+                "description": tirinha["descricao"],
+
+
+                "image": {
+
+                    "url": tirinha["imagem"]
+
+                }
+
+            }
+
+        ]
+
+    }
+
 
 
     resposta = requests.post(
         WEBHOOK,
-        json={
-            "username": "Daily Comics",
-            "embeds": [
-                {
-                    "title": "Peanuts - Tirinha do dia",
-                    "description": tirinha["descricao"],
-                    "image": {
-                        "url": tirinha["imagem"]
-                    }
-                }
-            ]
-        }
+        json=dados
     )
 
 
@@ -131,14 +207,22 @@ def enviar_discord(tirinha):
 
 
 
+
+
 tirinha = pegar_tirinha()
+
 
 
 if tirinha:
 
-    enviar_discord(tirinha)
+
+    enviar_discord(
+        tirinha
+    )
+
 
 else:
+
 
     print(
         "Processo finalizado sem tirinha"
