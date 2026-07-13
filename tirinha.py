@@ -1,4 +1,16 @@
+from playwright.sync_api import sync_playwright
+import requests
+import os
+
+
+WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+
+URL = "https://www.gocomics.com/peanuts"
+
+
 def pegar_tirinha():
+
+    print("Iniciando Playwright...")
 
     with sync_playwright() as p:
 
@@ -6,8 +18,12 @@ def pegar_tirinha():
             headless=True
         )
 
+        print("Navegador aberto")
+
         pagina = navegador.new_page()
 
+
+        print("Abrindo GoComics...")
 
         pagina.goto(
             URL,
@@ -15,15 +31,40 @@ def pegar_tirinha():
             timeout=60000
         )
 
+        print("Página carregada")
 
-        # Espera o JavaScript carregar a tirinha
         pagina.wait_for_timeout(5000)
 
+        print("Esperou JavaScript")
 
-        pagina.wait_for_selector(
-            "img[class*='comic__image']",
-            timeout=60000
+
+        quantidade = pagina.locator("img").count()
+
+        print(
+            "Quantidade de imagens:",
+            quantidade
         )
+
+
+        quantidade_comic = pagina.locator(
+            "img[class*='comic__image']"
+        ).count()
+
+        print(
+            "Quantidade de comic__image:",
+            quantidade_comic
+        )
+
+
+        if quantidade_comic == 0:
+
+            print(
+                "Nenhuma tirinha encontrada"
+            )
+
+            navegador.close()
+
+            return None
 
 
         comic = pagina.locator(
@@ -40,6 +81,17 @@ def pegar_tirinha():
         )
 
 
+        print(
+            "Imagem encontrada:",
+            imagem
+        )
+
+        print(
+            "Descrição:",
+            descricao
+        )
+
+
         navegador.close()
 
 
@@ -47,3 +99,47 @@ def pegar_tirinha():
             "imagem": imagem,
             "descricao": descricao
         }
+
+
+
+def enviar_discord(tirinha):
+
+    print("Enviando para Discord...")
+
+
+    resposta = requests.post(
+        WEBHOOK,
+        json={
+            "username": "Daily Comics",
+            "embeds": [
+                {
+                    "title": "Peanuts - Tirinha do dia",
+                    "description": tirinha["descricao"],
+                    "image": {
+                        "url": tirinha["imagem"]
+                    }
+                }
+            ]
+        }
+    )
+
+
+    print(
+        "Resposta Discord:",
+        resposta.status_code
+    )
+
+
+
+tirinha = pegar_tirinha()
+
+
+if tirinha:
+
+    enviar_discord(tirinha)
+
+else:
+
+    print(
+        "Processo finalizado sem tirinha"
+    )
