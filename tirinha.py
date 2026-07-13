@@ -1,69 +1,49 @@
-from playwright.sync_api import sync_playwright
+def pegar_tirinha():
+
+    with sync_playwright() as p:
+
+        navegador = p.chromium.launch(
+            headless=True
+        )
+
+        pagina = navegador.new_page()
 
 
-URL = "https://www.gocomics.com/peanuts"
+        pagina.goto(
+            URL,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
 
 
-with sync_playwright() as p:
-
-    navegador = p.chromium.launch(
-        headless=True
-    )
-
-    pagina = navegador.new_page()
+        # Espera o JavaScript carregar a tirinha
+        pagina.wait_for_timeout(5000)
 
 
-    pagina.goto(
-        URL,
-        wait_until="domcontentloaded",
-        timeout=60000
-    )
+        pagina.wait_for_selector(
+            "img[class*='comic__image']",
+            timeout=60000
+        )
 
 
-    # Dá tempo para o JavaScript carregar
-    pagina.wait_for_timeout(5000)
+        comic = pagina.locator(
+            "img[class*='comic__image']"
+        ).first
 
 
-    print("Título da página:")
-    print(
-        pagina.title()
-    )
+        imagem = comic.get_attribute(
+            "src"
+        )
+
+        descricao = comic.get_attribute(
+            "alt"
+        )
 
 
-    print("\nURL atual:")
-    print(
-        pagina.url
-    )
+        navegador.close()
 
 
-    print("\nTexto encontrado na página:")
-    texto = pagina.locator(
-        "body"
-    ).inner_text()
-
-    print(
-        texto[:2000]
-    )
-
-
-    # Conta elementos importantes
-    print("\nQuantidade de imagens:")
-    print(
-        pagina.locator("img").count()
-    )
-
-
-    print("\nQuantidade de elementos:")
-    print(
-        pagina.locator("*").count()
-    )
-
-
-    # Salva uma captura para análise
-    pagina.screenshot(
-        path="debug.png",
-        full_page=True
-    )
-
-
-    navegador.close()
+        return {
+            "imagem": imagem,
+            "descricao": descricao
+        }
