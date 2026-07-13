@@ -1,5 +1,5 @@
+from playwright.sync_api import sync_playwright
 import requests
-from bs4 import BeautifulSoup
 import os
 
 
@@ -10,41 +10,57 @@ URL = "https://www.gocomics.com/peanuts"
 
 def pegar_tirinha():
 
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
+    with sync_playwright() as p:
 
-    resposta = requests.get(
-        URL,
-        headers=headers
-    )
+        navegador = p.chromium.launch(
+            headless=True
+        )
 
-    soup = BeautifulSoup(
-        resposta.text,
-        "html.parser"
-    )
+        pagina = navegador.new_page()
 
-    # Procura a imagem real da tirinha pelo componente do GoComics
-    imagem = soup.find(
-        "img",
-        class_=lambda x: x and "comic__image" in x
-    )
+        pagina.goto(
+            URL,
+            wait_until="networkidle"
+        )
 
-    if imagem:
-        return imagem.get("src")
+        # Espera a imagem da tirinha aparecer
+        pagina.wait_for_selector(
+            "img[class*='comic__image']"
+        )
 
-    return None
+        imagem = pagina.locator(
+            "img[class*='comic__image']"
+        ).first
 
 
+        src = imagem.get_attribute(
+            "src"
+        )
 
-def enviar_discord(imagem):
+        alt = imagem.get_attribute(
+            "alt"
+        )
+
+
+        navegador.close()
+
+
+        return {
+            "imagem": src,
+            "descricao": alt
+        }
+
+
+
+def enviar_discord(tirinha):
 
     dados = {
         "embeds": [
             {
                 "title": "Peanuts - Tirinha do dia",
+                "description": tirinha["descricao"],
                 "image": {
-                    "url": imagem
+                    "url": tirinha["imagem"]
                 },
                 "footer": {
                     "text": "Publicado automaticamente pelo Daily Comics"
@@ -53,13 +69,14 @@ def enviar_discord(imagem):
         ]
     }
 
+
     resposta = requests.post(
         WEBHOOK,
         json=dados
     )
 
+
     if resposta.status_code != 204:
-        print("Erro ao enviar para o Discord:")
         print(resposta.text)
 
 
@@ -67,13 +84,13 @@ def enviar_discord(imagem):
 tirinha = pegar_tirinha()
 
 
-if tirinha:
+if tirinha["imagem"]:
 
-    print("Tirinha encontrada:")
-    print(tirinha)
+    print("Imagem encontrada:")
+    print(tirinha["imagem"])
 
     enviar_discord(tirinha)
 
 else:
 
-    print("Não foi possível encontrar a tirinha.")
+    print("Não encontrei a tirinha")
