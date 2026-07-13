@@ -1,87 +1,45 @@
 name: Tirinha diária
 
-
 on:
+  schedule:
+    - cron: "*/5 * * * *"
 
   workflow_dispatch:
 
-
-  schedule:
-
-    # TESTE: executa a cada 1 minuto
-    - cron: "*/1 * * * *"
-
-
-
 jobs:
-
-
   enviar:
-
 
     runs-on: ubuntu-latest
 
-
-
     steps:
 
-
       - name: Baixar código
-
         uses: actions/checkout@v4
 
-
-
       - name: Configurar Python
-
         uses: actions/setup-python@v5
-
         with:
-
           python-version: "3.12"
 
-
-
       - name: Instalar dependências
-
         run: |
-
           pip install -r requirements.txt
 
-
-
       - name: Instalar Playwright
-
         run: |
-
           playwright install chromium
 
-
-
       - name: Executar script
-
         env:
-
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-
         run:
-
           python tirinha.py
 
-
-
       - name: Salvar diagnóstico
-
         if: always()
-
         uses: actions/upload-artifact@v4
-
         with:
-
           name: debug-gocomics
-
           path: |
-
             debug.png
-
             pagina_debug.html
